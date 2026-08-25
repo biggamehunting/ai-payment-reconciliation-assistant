@@ -9,6 +9,7 @@ persistence across restarts.
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
+from app.database.database import save_chat_message, get_chat_history
 
 from app.config import GEMINI_MODEL, GOOGLE_API_KEY
 
@@ -16,8 +17,6 @@ SYSTEM_PROMPT = (
     "You are a friendly, helpful chatbot. Keep answers concise and conversational."
 )
 
-# session_id -> list of LangChain message objects (conversation history)
-_session_histories: dict[str, list] = {}
 
 _llm = None
 
@@ -69,23 +68,33 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     if not text:
         return "Say something and I'll respond!"
 
-    history = _session_histories.setdefault(session_id, [])
+    rows = get_chat_history(session_id)
+    history = []
 
-    messages = [SystemMessage(content=SYSTEM_PROMPT), *history, HumanMessage(content=text)]
+    for row in rows[-20:]:
+        if row["role"] == "user":
+            history.append(HumanMessage(content=row["message"]))
+        elif row["role"] == "assistant":
+            history.append(AIMessage(content=row["message"]))
+
+    messages = [
+    SystemMessage(content=SYSTEM_PROMPT),
+    *history,
+    HumanMessage(content=text)
+]
 
     try:
+        save_chat_message(session_id, "user", text)
         llm = _get_llm()
         response = llm.invoke(messages)
         reply = _extract_text(response.content)
         if not reply:
             reply = "Sorry, I didn't get a usable response from Gemini. Please try again."
+        save_chat_message(session_id, "assistant", reply)
     except Exception as exc:  # noqa: BLE001 - surface a friendly message either way
         reply = f"Sorry, I hit an error talking to Gemini: {exc}"
         return reply
 
-    # Keep history bounded so the prompt doesn't grow forever.
-    history.append(HumanMessage(content=text))
-    history.append(AIMessage(content=reply))
-    _session_histories[session_id] = history[-20:]
+   
 
     return reply

@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.database.database import create_tables
 
 from app.routes import chat
 
-app = FastAPI(title="Simple Chatbot API", version="1.0.0")
+app = FastAPI(title=" Chatbot API", version="1.0.0")
+
+create_tables()
 
 # Allow the frontend (served from a different origin/port) to call this API.
 # For production, replace "*" with the exact origin(s) you trust.
@@ -16,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(chat.router, prefix="/api", tags=["chat"])
+
 
 
 @app.get("/")
