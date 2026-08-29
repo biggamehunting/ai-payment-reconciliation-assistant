@@ -21,10 +21,10 @@ SYSTEM_PROMPT = (
 
 _llm = None
 #duckduckgo is free search engine, but it has a limit of 100 searches per day. Tavily is a paid search engine that allows more searches per day. You can choose either one based on your needs.
-#_search_tool = DuckDuckGoSearchRun()
-_search_tool = TavilySearch(
-    max_results=2
-)
+_search_tool = DuckDuckGoSearchRun()
+#_search_tool = TavilySearch(
+#    max_results=2
+#)
 _llm_with_tools = None
 
 def _get_llm() -> ChatGoogleGenerativeAI:
