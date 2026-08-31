@@ -13,7 +13,7 @@ from app.database.database import save_chat_message, get_chat_history
 from langchain_community.tools import DuckDuckGoSearchRun
 from app.config import GEMINI_MODEL, GOOGLE_API_KEY
 from langchain_tavily import TavilySearch
-from app.services.rag_service import retrieve_context
+from app.services.rag_service import retrieve_context, search_internal_knowledge
 
 
 SYSTEM_PROMPT = (
@@ -28,6 +28,11 @@ _search_tool = DuckDuckGoSearchRun()
 #    max_results=2
 #)
 _llm_with_tools = None
+_llm = None
+tools = [
+    _search_tool,
+    search_internal_knowledge
+]
 
 def _get_llm() -> ChatGoogleGenerativeAI:
     """Lazily create the LLM client so a missing API key doesn't crash imports."""
@@ -43,10 +48,10 @@ def _get_llm() -> ChatGoogleGenerativeAI:
             google_api_key=GOOGLE_API_KEY
         )
         #tell llm it can use the search tool
-        #_llm_with_tools = _llm.bind_tools([_search_tool])
+        _llm_with_tools = _llm.bind_tools(tools)
     return _llm
 
-_llm = _get_llm
+
 
 def _extract_text(content) -> str:
     """
@@ -84,11 +89,6 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     context = "\n\n".join(
         doc.page_content for doc in rag_results
     )
-
-    print("RAG CONTEXT:")
-    print(context)
-
-
     rows = get_chat_history(session_id)
     history = []
 
@@ -118,20 +118,27 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     try:
         save_chat_message(session_id, "user", text)
         llm = _get_llm()
-        # _llm_with_tools = _get_llm_with_tools()
+        _llm_with_tools = _get_llm_with_tools()
 
         #replace the llm.invoke with _llm_with_tools.invoke to enable tool usage
         #response = llm.invoke(messages)
 
         #call the llm with tools to get the response, which may include a tool call
-        # response = _llm_with_tools.invoke(messages)
+        response = _llm_with_tools.invoke(messages)
 
-        response = llm.invoke(messages)
+        # response = llm.invoke(messages)
         print(response.tool_calls)
         print("inside")
 
-        answer = run_search_agent(response,text
-        )   
+        if response.tool_calls:
+            #if gemini decided to use a tool, we need to handle the tool call and get the final answer
+            answer = run_search_agent(response,text)
+        else:
+            #if gemini decided not to use a tool, just extract the text content of the response
+            answer = _extract_text(response.content)
+
+        # answer = run_search_agent(response,text
+        # answer = _extract_text(response.content)   
 
         print("\nFINAL ANSWER:")
         print(answer)
@@ -150,14 +157,14 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
 
     return reply
 
-# def _get_llm_with_tools():
-#     global _llm_with_tools
+def _get_llm_with_tools():
+    global _llm_with_tools
 
-#     if _llm_with_tools is None:
-#         llm = _get_llm()
-#         _llm_with_tools = llm.bind_tools([_search_tool])
+    if _llm_with_tools is None:
+        llm = _get_llm()
+        _llm_with_tools = llm.bind_tools(tools)
 
-#     return _llm_with_tools
+    return _llm_with_tools
 
 def run_search_agent(response, user_question):
    

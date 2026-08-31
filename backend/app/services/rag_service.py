@@ -1,6 +1,7 @@
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from app.config import QDRANT_URL, QDRANT_API_KEY
+from langchain_core.tools import tool
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="models/gemini-embedding-001"
@@ -22,10 +23,21 @@ def retrieve_context(question: str):
     return results
 
 
-if __name__ == "__main__":
-    results = retrieve_context(
-        "What is the deadline for requesting a refund?"
+@tool
+def search_internal_knowledge(question: str) -> str:
+    """Search the company's internal payment documents for relevant information."""
+    
+    results = vector_store.similarity_search(question, k=3)
+
+    return "\n\n".join(
+        doc.page_content for doc in results
     )
 
-    for doc in results:
-        print(doc.page_content)
+
+# if __name__ == "__main__":
+#     results = retrieve_context(
+#         "What is the deadline for requesting a refund?"
+#     )
+
+#     for doc in results:
+#         print(doc.page_content)
