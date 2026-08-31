@@ -13,13 +13,15 @@ from app.database.database import save_chat_message, get_chat_history
 from langchain_community.tools import DuckDuckGoSearchRun
 from app.config import GEMINI_MODEL, GOOGLE_API_KEY
 from langchain_tavily import TavilySearch
+from app.services.rag_service import retrieve_context
+
 
 SYSTEM_PROMPT = (
     "You are a friendly, helpful chatbot. Keep answers concise and conversational."
 )
 
 
-_llm = None
+
 #duckduckgo is free search engine, but it has a limit of 100 searches per day. Tavily is a paid search engine that allows more searches per day. You can choose either one based on your needs.
 _search_tool = DuckDuckGoSearchRun()
 #_search_tool = TavilySearch(
@@ -41,9 +43,10 @@ def _get_llm() -> ChatGoogleGenerativeAI:
             google_api_key=GOOGLE_API_KEY
         )
         #tell llm it can use the search tool
-        _llm_with_tools = _llm.bind_tools([_search_tool])
+        #_llm_with_tools = _llm.bind_tools([_search_tool])
     return _llm
 
+_llm = _get_llm
 
 def _extract_text(content) -> str:
     """
@@ -76,6 +79,16 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     if not text:
         return "Say something and I'll respond!"
 
+    rag_results  = retrieve_context(text)
+
+    context = "\n\n".join(
+        doc.page_content for doc in rag_results
+    )
+
+    print("RAG CONTEXT:")
+    print(context)
+
+
     rows = get_chat_history(session_id)
     history = []
 
@@ -87,6 +100,17 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
 
     messages = [
     SystemMessage(content=SYSTEM_PROMPT),
+
+    SystemMessage(
+        content=f"""
+        Use the following retrieved information when it is relevant
+        to the user's question.
+
+        Retrieved information:
+        {context}
+        """
+    ),
+
     *history,
     HumanMessage(content=text)
 ]
@@ -94,13 +118,15 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     try:
         save_chat_message(session_id, "user", text)
         llm = _get_llm()
-        _llm_with_tools = _get_llm_with_tools()
+        # _llm_with_tools = _get_llm_with_tools()
 
         #replace the llm.invoke with _llm_with_tools.invoke to enable tool usage
         #response = llm.invoke(messages)
 
         #call the llm with tools to get the response, which may include a tool call
-        response = _llm_with_tools.invoke(messages)
+        # response = _llm_with_tools.invoke(messages)
+
+        response = llm.invoke(messages)
         print(response.tool_calls)
         print("inside")
 
@@ -124,14 +150,14 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
 
     return reply
 
-def _get_llm_with_tools():
-    global _llm_with_tools
+# def _get_llm_with_tools():
+#     global _llm_with_tools
 
-    if _llm_with_tools is None:
-        llm = _get_llm()
-        _llm_with_tools = llm.bind_tools([_search_tool])
+#     if _llm_with_tools is None:
+#         llm = _get_llm()
+#         _llm_with_tools = llm.bind_tools([_search_tool])
 
-    return _llm_with_tools
+#     return _llm_with_tools
 
 def run_search_agent(response, user_question):
    

@@ -1,0 +1,14 @@
+Payment Reconciliation Policy
+
+Payments are reconciled against the expected invoice amount.
+
+A payment is considered matched when the payment amount
+equals the expected invoice amount.
+
+If the payment amount differs from the expected amount,
+the payment is marked as a discrepancy.
+
+Discrepancies can be caused by incorrect payment amounts,
+duplicate payments, or missing payments.
+
+Refund requests must be submitted within 30 days.
