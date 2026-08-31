@@ -1,6 +1,6 @@
 # Simple Chatbot
 
-A minimal chatbot with a vanilla HTML/CSS/JS frontend and a FastAPI backend.
+A chatbot with a vanilla HTML/CSS/JS frontend and a FastAPI backend. Duckduckgo tool search added.
 
 ## Folder structure
 
