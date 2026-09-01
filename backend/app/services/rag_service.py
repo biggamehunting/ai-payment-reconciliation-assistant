@@ -4,7 +4,7 @@ from app.config import QDRANT_URL, QDRANT_API_KEY
 from langchain_core.tools import tool
 
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001"
+    model="models/gemini-embedding-2"
 )
 
 vector_store = QdrantVectorStore.from_existing_collection(
@@ -25,13 +25,24 @@ def retrieve_context(question: str):
 
 @tool
 def search_internal_knowledge(question: str) -> str:
-    """Search the company's internal payment documents for relevant information."""
+    """
+    Search only the internal documents provided to the application.
+
+    Use this tool when the user asks about information contained
+    in the company's internal documents.
+
+    Do NOT use this tool for current, public, or internet information.
+    """
     
     results = vector_store.similarity_search(question, k=3)
 
     return "\n\n".join(
         doc.page_content for doc in results
     )
+
+
+
+
 
 
 # if __name__ == "__main__":

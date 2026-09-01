@@ -9,3 +9,4 @@ duckduckgo-search
 tavily-python
 langchain-tavily
 langchain-qdrant
+pypdf

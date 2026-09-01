@@ -14,6 +14,7 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from app.config import GEMINI_MODEL, GOOGLE_API_KEY
 from langchain_tavily import TavilySearch
 from app.services.rag_service import retrieve_context, search_internal_knowledge
+from langchain_core.messages import ToolMessage
 
 
 SYSTEM_PROMPT = (
@@ -33,7 +34,14 @@ tools = [
     _search_tool,
     search_internal_knowledge
 ]
+##############################################################################################################33
+tools_by_name = {
+    tool.name: tool
+    for tool in tools
+}
 
+called_tools = set()
+#############################################################################################################
 def _get_llm() -> ChatGoogleGenerativeAI:
     """Lazily create the LLM client so a missing API key doesn't crash imports."""
     global _llm
@@ -84,11 +92,11 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     if not text:
         return "Say something and I'll respond!"
 
-    rag_results  = retrieve_context(text)
+    # rag_results  = retrieve_context(text)
 
-    context = "\n\n".join(
-        doc.page_content for doc in rag_results
-    )
+    # context = "\n\n".join(
+    #     doc.page_content for doc in rag_results
+    # )
     rows = get_chat_history(session_id)
     history = []
 
@@ -100,17 +108,6 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
 
     messages = [
     SystemMessage(content=SYSTEM_PROMPT),
-
-    SystemMessage(
-        content=f"""
-        Use the following retrieved information when it is relevant
-        to the user's question.
-
-        Retrieved information:
-        {context}
-        """
-    ),
-
     *history,
     HumanMessage(content=text)
 ]
@@ -124,22 +121,99 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
         #response = llm.invoke(messages)
 
         #call the llm with tools to get the response, which may include a tool call
-        response = _llm_with_tools.invoke(messages)
+        #response = _llm_with_tools.invoke(messages)
 
-        # response = llm.invoke(messages)
-        print(response.tool_calls)
-        print("inside")
+       
+        #print(response.tool_calls)
+        #print("inside")
 
-        if response.tool_calls:
-            #if gemini decided to use a tool, we need to handle the tool call and get the final answer
-            answer = run_search_agent(response,text)
-        else:
-            #if gemini decided not to use a tool, just extract the text content of the response
-            answer = _extract_text(response.content)
+        # if response.tool_calls:
+        #     #if gemini decided to use a tool, we need to handle the tool call and get the final answer
+        #     answer = run_search_agent(response,text)
+        # else:
+        #     #if gemini decided not to use a tool, just extract the text content of the response
+        #     answer = _extract_text(response.content)
             
-        # answer = run_search_agent(response,text
-        # answer = _extract_text(response.content)   
 
+
+##########################################################################################################################
+        # MAX_ITERATIONS = 5
+
+        # for _ in range(MAX_ITERATIONS):
+
+        #     response = _llm_with_tools.invoke(messages)
+
+        #     messages.append(response)
+
+        #     if not response.tool_calls:
+        #         answer = _extract_text(response.content)
+        #         break
+
+        #     for tool_call in response.tool_calls:
+        #         tool = tools_by_name[tool_call["name"]]
+                
+        #         result = tool.invoke(tool_call["args"])
+             
+        #         messages.append(
+        #             ToolMessage(
+        #                 content=str(result),
+        #                 tool_call_id=tool_call["id"]
+        #             )
+        #         )
+
+        # else:
+        #     answer = "I couldn't complete the request."
+
+        
+        
+############################################################################################################################
+        MAX_ITERATIONS = 5
+
+
+        for _ in range(MAX_ITERATIONS):
+
+            response = _llm_with_tools.invoke(messages)
+
+            messages.append(response)
+
+            if not response.tool_calls:
+                answer = _extract_text(response.content)
+                break
+
+            for tool_call in response.tool_calls:
+
+                tool_name = tool_call["name"]
+                tool_args = tool_call["args"]
+
+                # Check if exactly the same tool call was already made
+                call_key = (tool_name, str(tool_args))
+
+                if call_key in called_tools:
+                    answer = "I already performed that search but could not obtain enough information."
+                    break
+
+                called_tools.add(call_key)
+
+                tool = tools_by_name[tool_name]
+
+                result = tool.invoke(tool_args)
+
+                messages.append(
+                    ToolMessage(
+                        content=str(result),
+                        tool_call_id=tool_call["id"]
+                    )
+                )
+        
+        
+        
+        
+        
+        
+        
+        
+        
+############################################################################################################################        
         print("\nFINAL ANSWER:")
         print(answer)
 
