@@ -1,6 +1,6 @@
 # Simple Chatbot
 
-A chatbot with a vanilla HTML/CSS/JS frontend and a FastAPI backend. Duckduckgo tool search added.
+A chatbot with a vanilla HTML/CSS/JS frontend and a FastAPI backend. Duckduckgo tool search added. RAG retrieval added with Qdrant vector database.
 
 ## Folder structure
 
@@ -16,6 +16,7 @@ chatbot-app/
 │   │   │   └── schemas.py       # Pydantic request/response models
 │   │   └── services/
 │   │       └── chat_service.py  # LangChain + Gemini chat logic, per-session history
+            └── rag_service.py   # RAG implemented as a tool
 │   ├── .env.example             # Copy to .env and add your Gemini API key
 │   └── requirements.txt
 └── frontend/

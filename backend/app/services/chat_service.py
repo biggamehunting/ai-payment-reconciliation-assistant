@@ -117,7 +117,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
 
     try:
         save_chat_message(session_id, "user", text)
-        llm = _get_llm()
+        # llm = _get_llm()
         _llm_with_tools = _get_llm_with_tools()
 
         #replace the llm.invoke with _llm_with_tools.invoke to enable tool usage
@@ -136,7 +136,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
         else:
             #if gemini decided not to use a tool, just extract the text content of the response
             answer = _extract_text(response.content)
-
+            
         # answer = run_search_agent(response,text
         # answer = _extract_text(response.content)   
 
@@ -148,12 +148,12 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
         reply = answer
         if not reply:
             reply = "Sorry, I didn't get a usable response from Gemini. Please try again."
-        save_chat_message(session_id, "assistant", reply)
     except Exception as exc:  # noqa: BLE001 - surface a friendly message either way
         reply = f"Sorry, I hit an error talking to Gemini: {exc}"
         return reply
 
-   
+    save_chat_message(session_id, "assistant", reply)
+
 
     return reply
 
@@ -168,7 +168,7 @@ def _get_llm_with_tools():
 
 def run_search_agent(response, user_question):
    
-    response = _llm_with_tools.invoke(user_question)
+    # response = _llm_with_tools.invoke(user_question)
 
     
     
