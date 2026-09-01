@@ -15,6 +15,7 @@ from app.config import GEMINI_MODEL, GOOGLE_API_KEY
 from langchain_tavily import TavilySearch
 from app.services.rag_service import retrieve_context, search_internal_knowledge
 from langchain_core.messages import ToolMessage
+from langchain.agents import create_agent
 
 
 SYSTEM_PROMPT = (
@@ -35,13 +36,58 @@ tools = [
     search_internal_knowledge
 ]
 ##############################################################################################################33
-tools_by_name = {
-    tool.name: tool
-    for tool in tools
-}
+# tools_by_name = {
+#     tool.name: tool
+#     for tool in tools
+# }
 
-called_tools = set()
+# called_tools = set()
 #############################################################################################################
+
+
+
+agent = create_agent(
+    model=ChatGoogleGenerativeAI(
+        model=GEMINI_MODEL,
+        google_api_key=GOOGLE_API_KEY,
+        temperature=0
+    ),
+    tools=tools,
+    system_prompt="""
+You are a helpful assistant.
+
+Tool rules:
+
+1. search_internal_knowledge
+   - Use ONLY for information contained in internal documents.
+   - Never use it for current or public internet information.
+
+2. duckduckgo_search
+   - Use ONLY for public or current internet information.
+   - Do not use it to answer questions about confidential internal documents.
+
+Do not call a tool if you already have enough information.
+
+Do not repeat the same tool call unless the previous result
+clearly indicates that another search is necessary.
+
+If the available information is insufficient, say so rather
+than repeatedly calling tools.
+"""
+)
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################
 def _get_llm() -> ChatGoogleGenerativeAI:
     """Lazily create the LLM client so a missing API key doesn't crash imports."""
     global _llm
@@ -115,7 +161,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     try:
         save_chat_message(session_id, "user", text)
         # llm = _get_llm()
-        _llm_with_tools = _get_llm_with_tools()
+        #_llm_with_tools = _get_llm_with_tools()
 
         #replace the llm.invoke with _llm_with_tools.invoke to enable tool usage
         #response = llm.invoke(messages)
@@ -167,49 +213,74 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
         
         
 ############################################################################################################################
-        MAX_ITERATIONS = 5
+        # MAX_ITERATIONS = 5
 
 
-        for _ in range(MAX_ITERATIONS):
+        # for _ in range(MAX_ITERATIONS):
 
-            response = _llm_with_tools.invoke(messages)
+        #     response = _llm_with_tools.invoke(messages)
 
-            messages.append(response)
+        #     messages.append(response)
 
-            if not response.tool_calls:
-                answer = _extract_text(response.content)
-                break
+        #     if not response.tool_calls:
+        #         answer = _extract_text(response.content)
+        #         break
 
-            for tool_call in response.tool_calls:
+        #     for tool_call in response.tool_calls:
 
-                tool_name = tool_call["name"]
-                tool_args = tool_call["args"]
+        #         tool_name = tool_call["name"]
+        #         tool_args = tool_call["args"]
 
-                # Check if exactly the same tool call was already made
-                call_key = (tool_name, str(tool_args))
+        #         # Check if exactly the same tool call was already made
+        #         call_key = (tool_name, str(tool_args))
 
-                if call_key in called_tools:
-                    answer = "I already performed that search but could not obtain enough information."
-                    break
+        #         if call_key in called_tools:
+        #             answer = "I already performed that search but could not obtain enough information."
+        #             break
 
-                called_tools.add(call_key)
+        #         called_tools.add(call_key)
 
-                tool = tools_by_name[tool_name]
+        #         tool = tools_by_name[tool_name]
 
-                result = tool.invoke(tool_args)
+        #         result = tool.invoke(tool_args)
 
-                messages.append(
-                    ToolMessage(
-                        content=str(result),
-                        tool_call_id=tool_call["id"]
+        #         messages.append(
+        #             ToolMessage(
+        #                 content=str(result),
+        #                 tool_call_id=tool_call["id"]
+        #             )
+        #         )
+############################################################################################################################        
+        
+        
+        result = agent.invoke(
+            {
+                "messages": messages
+            },
+            config={
+                "recursion_limit": 5
+            }
+        )
+
+        for msg in result["messages"]:
+            if hasattr(msg, "tool_calls"):
+                for tool_call in msg.tool_calls:
+                    print(
+                        "Tool:",
+                        tool_call["name"],
+                        "Args:",
+                        tool_call["args"]
                     )
-                )
+
+        answer = _extract_text(
+            result["messages"][-1].content
+        )
+
+        if not answer:
+            answer = (
+                "Sorry, I didn't get a usable response from Gemini."
         
-        
-        
-        
-        
-        
+           )
         
         
         

@@ -15,6 +15,7 @@ vector_store = QdrantVectorStore.from_existing_collection(
 )
 
 def retrieve_context(question: str):
+    
     results = vector_store.similarity_search(
         question,
         k=3
@@ -33,12 +34,21 @@ def search_internal_knowledge(question: str) -> str:
 
     Do NOT use this tool for current, public, or internet information.
     """
-    
-    results = vector_store.similarity_search(question, k=3)
+    try:
 
-    return "\n\n".join(
-        doc.page_content for doc in results
-    )
+        if not question or not question.strip():
+            return "No valid question was provided."
+        
+        results = vector_store.similarity_search(question, k=3)
+
+        if not results:
+            return "No relevant internal information was found."
+
+        return "\n\n".join(
+            doc.page_content for doc in results
+        )
+    except Exception as e:
+        return f"An error occurred while searching internal knowledge: {str(e)}"
 
 
 
