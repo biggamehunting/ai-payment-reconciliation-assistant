@@ -1,6 +1,6 @@
 # Simple Chatbot
 
-A chatbot with a vanilla HTML/CSS/JS frontend and a FastAPI backend. Duckduckgo tool search added. RAG retrieval added with Qdrant vector database.
+A chatbot with a vanilla HTML/CSS/JS frontend and a FastAPI backend. Duckduckgo tool search added. RAG retrieval added with Qdrant vector database. Multi tool calling added. agentic loop added wo using create agent. create agent added. manual guardrails for manual agentic behavior and prompt based guardrails for create agent added.
 
 ## Folder structure
 
