@@ -44,6 +44,10 @@ def search_internal_knowledge(question: str) -> str:
         if not results:
             return "No relevant internal information was found."
 
+        for i, doc in enumerate(results, start=1):
+            print(f"\n--- CHUNK {i} ---")
+            print(doc.page_content)
+
         return "\n\n".join(
             doc.page_content for doc in results
         )
