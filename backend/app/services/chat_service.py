@@ -7,6 +7,10 @@ the server restarts; swap the in-memory dict for Redis/a database if you need
 persistence across restarts.
 """
 
+from urllib import response
+
+from urllib import response
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.database.database import save_chat_message, get_chat_history
@@ -132,6 +136,59 @@ def _extract_text(content) -> str:
 
     return str(content)
 
+def check_grounding(question: str, context: str, answer: str) -> str:
+            """
+            Check whether the generated answer is fully supported
+            by the retrieved internal context.
+            """
+
+            prompt = f"""
+        You are a grounding checker.
+
+        Determine whether EVERY factual claim in the answer
+        is supported by the provided context.
+
+        Rules:
+        - Use ONLY the provided context.
+        - Do not use your own knowledge.
+        - If every factual claim is supported, return exactly:
+
+        SUPPORTED
+
+        - If one or more factual claims are unsupported, return:
+
+        UNSUPPORTED
+        Claim: <unsupported claim>
+        Reason: <why it is not supported by the context>
+
+        Question:
+        {question}
+
+        Context:
+        {context}
+
+        Answer:
+        {answer}
+        """
+
+            llm = _get_llm()
+            response = llm.invoke(prompt)
+
+            return _extract_text(response.content)
+
+def extract_internal_context(result) -> str:
+    """
+    Extract context only from the internal RAG tool.
+    """
+
+    contexts = []
+
+    for msg in result["messages"]:
+        if isinstance(msg, ToolMessage):
+            if getattr(msg, "name", None) == "search_internal_knowledge":
+                contexts.append(str(msg.content))
+
+    return "\n\n".join(contexts)
 
 def get_bot_reply(message: str, session_id: str = "default") -> str:
     text = message.strip()
@@ -275,6 +332,28 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
         answer = _extract_text(
             result["messages"][-1].content
         )
+
+        internal_context = extract_internal_context(result)
+
+        if internal_context:
+
+                    # TEMPORARY TEST ONLY
+            # answer = "According to the internal document, the ARR growth rate is 35%."
+
+            grounding_result = check_grounding(
+                question=text,
+                context=internal_context,
+                answer=answer
+            )
+
+            print("\nGROUNDING CHECK:")
+            print(grounding_result)
+
+            if grounding_result.startswith("UNSUPPORTED"):
+                answer = (
+                    "I couldn't verify the answer against the internal "
+                    "documents, so I can't provide that information reliably."
+                )
 
         if not answer:
             answer = (
