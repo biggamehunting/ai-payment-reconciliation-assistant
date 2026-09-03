@@ -56,7 +56,21 @@ def search_internal_knowledge(question: str) -> str:
 
 
 
+@tool
+def delete_payment(payment_id: str) -> str:
+    """
+    Delete a payment.
 
+    This is a sensitive operation and requires human approval.
+    """
+    print(f"\n⚠️ APPROVAL REQUIRED: Delete payment {payment_id}?")
+
+    approval = input("Approve? (yes/no): ").strip().lower()
+
+    if approval != "yes":
+        return f"Deletion of payment {payment_id} was rejected by the user."
+
+    return f"Payment {payment_id} deleted successfully."
 
 
 # if __name__ == "__main__":
