@@ -2,14 +2,16 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from app.config import QDRANT_URL, QDRANT_API_KEY
 from langchain_core.tools import tool
+from langchain_huggingface import HuggingFaceEmbeddings
 
-embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-2"
+
+embeddings = HuggingFaceEmbeddings(
+    model_name="BAAI/bge-small-en-v1.5"
 )
 
 vector_store = QdrantVectorStore.from_existing_collection(
     embedding=embeddings,
-    collection_name="payment_policy",
+    collection_name="payment_policy_local",
     url=QDRANT_URL,
     api_key=QDRANT_API_KEY,
 )
@@ -24,53 +26,47 @@ def retrieve_context(question: str):
     return results
 
 
-@tool
-def search_internal_knowledge(question: str) -> str:
-    """
-    Search only the internal documents provided to the application.
 
-    Use this tool when the user asks about information contained
-    in the company's internal documents.
+# @tool
+# def search_internal_knowledge(question: str) -> str:
+#     """
+#     Search only the internal documents provided to the application.
 
-    Do NOT use this tool for current, public, or internet information.
-    """
-    try:
+#     Use this tool when the user asks about information contained
+#     in the company's internal documents.
 
-        if not question or not question.strip():
-            return "No valid question was provided."
+#     Do NOT use this tool for current, public, or internet information.
+#     """
+#     try:
+
+#         if not question or not question.strip():
+#             return "No valid question was provided."
         
-        results = vector_store.similarity_search(question, k=3)
+#         results = vector_store.similarity_search(question, k=3)
 
-        if not results:
-            return "No relevant internal information was found."
+#         if not results:
+#             return "No relevant internal information was found."
 
-        for i, doc in enumerate(results, start=1):
-            print(f"\n--- CHUNK {i} ---")
-            print(doc.page_content)
+#         for i, result in enumerate(results):
 
-        return "\n\n".join(
-            doc.page_content for doc in results
-        )
-    except Exception as e:
-        return f"An error occurred while searching internal knowledge: {str(e)}"
+#             print("\n==============================")
+#             print("RESULT:", i + 1)
+#             print("==============================")
+
+#             print("SOURCE:", result.metadata.get("source"))
+#             print("SECTION:", result.metadata.get("section"))
+
+#             print("\nCONTENT:")
+#             print(result.page_content[:500])
+
+#         return "\n\n".join(
+#             doc.page_content for doc in results
+#         )
+#     except Exception as e:
+#         return f"An error occurred while searching internal knowledge: {str(e)}"
 
 
 
-@tool
-def delete_payment(payment_id: str) -> str:
-    """
-    Delete a payment.
-
-    This is a sensitive operation and requires human approval.
-    """
-    print(f"\n⚠️ APPROVAL REQUIRED: Delete payment {payment_id}?")
-
-    approval = input("Approve? (yes/no): ").strip().lower()
-
-    if approval != "yes":
-        return f"Deletion of payment {payment_id} was rejected by the user."
-
-    return f"Payment {payment_id} deleted successfully."
 
 
 # if __name__ == "__main__":

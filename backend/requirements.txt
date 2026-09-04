@@ -10,3 +10,4 @@ tavily-python
 langchain-tavily
 langchain-qdrant
 pypdf
+beautifulsoup4

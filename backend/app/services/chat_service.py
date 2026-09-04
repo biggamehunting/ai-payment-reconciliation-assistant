@@ -8,8 +8,8 @@ persistence across restarts.
 """
 import time
 from urllib import response
-
-from urllib import response
+from app.services.hybrid_service import search_internal_knowledge, delete_payment
+from langchain_core.tools import tool
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -18,16 +18,17 @@ from app.database.database import save_chat_message, get_chat_history
 from langchain_community.tools import DuckDuckGoSearchRun
 from app.config import GEMINI_MODEL, GOOGLE_API_KEY
 from langchain_tavily import TavilySearch
-from app.services.rag_service import delete_payment, search_internal_knowledge
+
 from langchain_core.messages import ToolMessage
 from langchain.agents import create_agent
+# from app.services.rag_service import delete_payment, search_internal_knowledge
+
+from app.services.hybrid_service import hybrid_search
 
 
 SYSTEM_PROMPT = (
     "You are a friendly, helpful chatbot. Keep answers concise and conversational."
 )
-
-
 
 #duckduckgo is free search engine, but it has a limit of 100 searches per day. Tavily is a paid search engine that allows more searches per day. You can choose either one based on your needs.
 _search_tool = DuckDuckGoSearchRun()
@@ -374,7 +375,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
                 "messages": messages
             },
             config={
-                "recursion_limit": 5
+                "recursion_limit": 10
             }
         )
         agent_time = time.time() - agent_start
@@ -419,7 +420,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
             grounding_time = time.time() - grounding_start
             print(f"[{session_id}]🛡️ Grounding check time: {grounding_time:.2f} seconds")
             trace["stages"]["grounding"] = grounding_time
-            # print(f"[{session_id}]GROUNDING CHECK:",grounding_result)
+            print(f"[{session_id}]GROUNDING CHECK:",grounding_result)
             #print()
 
             if grounding_result.startswith("UNSUPPORTED"):
@@ -454,7 +455,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
         global failed_requests
         failed_requests += 1
         print(f"❌ Failed requests: {failed_requests}")
-        print(f"📊 Tool usage: {tool_usage}")
+        #print(f"📊 Tool usage: {tool_usage}")
         print("\n🔎 TRACE:")
         print(trace)
         return reply
@@ -467,7 +468,7 @@ def get_bot_reply(message: str, session_id: str = "default") -> str:
     print(f"[{session_id}]⏱️ Total request time: {elapsed:.2f} seconds")
     print(f"📊 Total requests: {total_requests}")
     print(f"❌ Failed requests: {failed_requests}")
-    print(f"📊 Tool usage: {tool_usage}")
+    #print(f"📊 Tool usage: {tool_usage}")
     global total_latency
     total_latency += elapsed
     average_latency = total_latency / total_requests
@@ -535,6 +536,5 @@ def run_search_agent(response, user_question):
 def failing_search(query):
     raise Exception("Simulated network error")
 
-from langchain_core.tools import tool
 
 
